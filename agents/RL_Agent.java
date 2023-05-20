@@ -14,6 +14,7 @@ import jade.domain.FIPAException;//This class represents a generic FIPAException
 import jade.lang.acl.ACLMessage;//The class ACLMessage implements an ACL message compliant to the FIPA 2000 
 
 import java.util.ArrayList;
+import java.util.Random;
 //"FIPA ACL Message Structure Specification" (fipa000061) specifications.
 //import java.util.Random;//An instance of this class is used to generate a stream of pseudorandom numbers.
 
@@ -24,12 +25,14 @@ public class RL_Agent extends Agent {
     private ArrayList<PlayerInformation> players = new ArrayList<>();
     private int N, R, E, Ei, Ri; //numPlayers, rounds, endowment, Probabily of disaster, number of Games. Endowment inicial
     private int myID;
-    private ACLMessage msg; //menssage
+    private ACLMessage msg; //message
     int[] msgIds;
+    int myPossitionInArray;
     int iNewAction;
-    double dProbAction[];
+    
     boolean bAllActions = false;    // At the beginning we did not try all actions
     int iNumActions = 5;      // For C or D for instance
+    double[] dProbAction = new double [iNumActions];
     int[] iNumTimesAction = new int [iNumActions];  // Number of times an action has been played
     double[] dPayoffAction = new double [iNumActions]; // Accumulated payoff obtained by the different actions
     
@@ -40,7 +43,7 @@ public class RL_Agent extends Agent {
         //Register in the yellow pages as a player
         DFAgentDescription dfd = new DFAgentDescription();
         dfd.setName(getAID());//Se le asigna un id 
-        myID = Integer.parseInt(getAID().getName()); 
+        myID = Integer.parseInt(getAID().getName().split("@")[0].split("r")[1]); 
         ServiceDescription sd = new ServiceDescription();
         sd.setType("Player");//tipo jugador
         sd.setName("Game");//nombre Juego
@@ -50,8 +53,8 @@ public class RL_Agent extends Agent {
         } catch (FIPAException fe) {
             fe.printStackTrace();
         }
-        for(int i = 0; i< iNumActions; i++){
-            dProbAction[i] = (1/iNumActions);
+        for(int i = 0; i < iNumActions; i++){
+            dProbAction[i] = (1.0/iNumActions);
         }
         addBehaviour(new Play());//Se le añade el comportamiento al jugador
         System.out.println("RL_Agent " + getAID().getName() + " is ready.");
@@ -105,7 +108,7 @@ public class RL_Agent extends Agent {
                         //If INFORM Id#_#_,_,_,_ PROCESS SETUP --> stay at s1
                         //Else ERROR
                         //Todo I probably should check if the new game message comes from the main agent who sent the parameters
-
+                        System.out.println("Soy el RL_AGENT voy a esperar por una nueva partida\n");
                         if (msg.getPerformative() == ACLMessage.INFORM) { //msg.getPerformative, return the integer representing the performative of this object
                             if (msg.getContent().startsWith("Id#")) { //Game settings updated
                                 try {
@@ -139,7 +142,7 @@ public class RL_Agent extends Agent {
                             }
                             R--;//Restamos 1 al número de rondas
                             msgS.setContent("Action#" + iNewAction);//selección de jugada que va a realizar
-                            //System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
+                            System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
                             send(msgS);
                             E -= iNewAction;//restamos a nuestro endowment el valor aleatorio de la acción escogida
                             state = State.s3AwaitingResult;
@@ -222,9 +225,19 @@ public class RL_Agent extends Agent {
 
             for(int i = 0; i <= idSplit.length - 1; i++){
                 msgIds[i] = Integer.parseInt(idSplit[i]);
+                System.out.println(idSplit[i]);
                 players.add(new PlayerInformation(msgIds[i]));
                 
             }
+
+            for(int i = 0; i <= idSplit.length - 1; i++){
+                if(msgIds[i] == myID){
+                    myPossitionInArray = i;
+                    System.out.println("Mi posición en el array es: " + myPossitionInArray);
+                    break;
+                }
+            }
+            
             E = Ei;//Actualizamos el endowment para el siguiente juego
             R = Ri;//Actualizamos las rondas para el siguiente juego
             return true;
@@ -242,6 +255,8 @@ public class RL_Agent extends Agent {
                 msgContribution[i] = Integer.parseInt(contributionsSplit[i]);
                 players.get(i).action = msgContribution[i];
             }
+            dPayoffAction[iNewAction] += 1.0 * msgContribution[myPossitionInArray];
+            System.out.println("Mi revenue es: " + dPayoffAction[iNewAction]);
 
             return true;
         }
@@ -278,14 +293,15 @@ public class RL_Agent extends Agent {
         
                             // Checking that I have played all actions before
             if (!bAllActions) {
+                System.out.println("NO he comprobado todas las acciones");
               bAllActions = true;
               for (int i = 0; i < iNumActions; i++)
                 if (iNumTimesAction[i] == 0) {
                   bAllActions = false;
                   break;
-                  }
-            }
-            else {                // If all actions have been tested, the probabilities are adjusted
+                }
+            }else {                // If all actions have been tested, the probabilities are adjusted
+                System.out.println("SI  he comprobado todas las acciones");
               dAuxTot = 0;
               for (int i = 0; i < iNumActions; i++) {       // Calculating average incomes
                 dAvgPayoffAction[i] = dPayoffAction[i] / (double) iNumTimesAction[i];  // Avg. value
@@ -302,6 +318,7 @@ public class RL_Agent extends Agent {
             dAux = Math.random();
             for (int i = 0; i < iNumActions; i++) {
               dAuxTot += dProbAction[i];
+              System.out.println("La dAuxTot: " + String.valueOf(dAuxTot) +  " La dProbaction" + i +": " + String.valueOf(dProbAction[i]) + " La dAux es: " + dAux + "\n");
               if (dAux <= dAuxTot) {
                 iNewAction = i;
                 iNumTimesAction[i]++;

@@ -1,6 +1,4 @@
-
-
-
+import java.util.Vector;
 
 /**
   * This is a basic class with some learning tools: statistical learning, learning automata (LA) and Q-Learning (QL)
@@ -25,54 +23,6 @@ Vector oVStateActions;     // A vector containing strings with the possible Stat
 
 
 /**
-  * This method is used to select the next action (Schaerf) considering a statistical
-  * criterium for the action that provided more benefits in the last iSizeBufferStat attempts.
-  *
-  */
-public void vGetNewActionStats () {
-  double dAux, dAuxTot;
-  double[] dAvgPayoffAction = new double [iNumActions];
-
-                   // Checking that I have played all actions before
-  if (!bAllActions) {
-    bAllActions = true;
-    for (int i=0; i<iNumActions; i++)
-      if (iNumTimesAction[i] == 0) {
-        bAllActions = false;
-        break;
-        }
-    }
-  else {                // If all actions have been tested, the probabilities are adjusted
-    dAuxTot = 0;
-    for (int i=0; i<iNumActions; i++) {       // Calculating average incomes
-      dAvgPayoffAction[i] = dPayoffAction[i] / (double) iNumTimesAction[i];  // Avg. value
-      dAuxTot += dAvgPayoffAction[i];       // Adding the individual results
-      }
-
-    for (int i=0; i<iNumActions; i++)
-      dProbAction[i] = dAvgPayoffAction[i] / dAuxTot;                        // Calculating probs.
-
-    } // if (bAllActions)
-
-
-  dAuxTot = 0;
-  dAux = Math.random();
-  for (int i=0; i<iNumActions; i++) {
-    dAuxTot += dProbAction[i];
-    if (dAux <= dAuxTot) {
-      iNewAction = i;
-      break;
-    }
-  }
-
-}
-
-
-
-
-
-
-/**
  * This method uses Learning Automata (LA) to select a new action depending on the
  * past experiences. The algorithm works as: store, adjust and generate a new action.
  * @param sState contains the present state
@@ -81,7 +31,7 @@ public void vGetNewActionStats () {
  */
 public void vGetNewActionAutomata (String sState, int iNActions, double dReward) {
   boolean bFound;
-  StateAction oStateProbs;
+  StateAction oStateProbs, oLastStateAction;
 
   bFound = false;       // Searching if we already have the state
   for (int i=0; i<oVStateActions.size(); i++) {
@@ -125,72 +75,6 @@ public void vGetNewActionAutomata (String sState, int iNActions, double dReward)
 
 
 
-
-
-
-
-/**
-  * This method is used to implement Q-Learning:
-  *  1. I start with the last action a, the previous state s and find the actual state s'
-  *  2. Select the new action with Qmax{a'}
-  *  3. Adjust:   Q(s,a) = Q(s,a) + dLearnRateLR [R + dGamma . Qmax{a'}(s',a') - Q(s,a)]
-  *  4. Select the new action by a epsilon-greedy methodology
-  *
-  * @param sState contains the present state
-  * @param iNActions contains the number of actions that can be applied in this state
-  * @param dReward is the reward obtained after performing the last action.
-  */
-
-public void vGetNewActionQLearning (String sState, int iNActions, double dReward) {
-  boolean bFound;
-  int iBest=-1, iNumBest=1;
-  double dR, dQmax;
-  StateAction oStateAction;
- 
-  bFound = false;       // Searching if we already have the state
-  for (int i=0; i<oVStateActions.size(); i++) {
-    oStateAction = (StateAction) oVStateActions.elementAt(i);
-    if (oStateAction.sState.equals (sState)) {
-      oPresentStateAction = oStateAction;
-      bFound = true;
-      break;
-    }
-  }
-                                                                     // If we didn't find it, then we add it
-  if (!bFound) {
-    oPresentStateAction = new StateAction (sState, iNActions);
-    oVStateActions.add (oPresentStateAction);
-  }
-
-  dQmax = 0;
-  for (int i=0; i<iNActions; i++) {     // Determining the action to get Qmax{a'}
-    if (oPresentStateAction.dValAction[i] > dQmax) {
-      iBest = i;
-      iNumBest = 1;       // Reseting the number of best actions
-      dQmax = oPresentStateAction.dValAction[i];
-    }
-    else if ( (oPresentStateAction.dValAction[i] == dQmax) && (dQmax > 0) ) { // If there is another one equal we must select one of them randomly
-      iNumBest++;
-      if (Math.random() < 1.0 / (double) iNumBest) {    // Choose randomly with reducing probabilities
-        iBest = i;
-     dQmax = oPresentStateAction.dValAction[i]; 
-      }
-    }
-  }
-                      // Adjusting Q(s,a)
-  if (oLastStateAction != null)
-    oLastStateAction.dValAction[iAction] +=  dLearnRate * (dR + dGamma * dQmax - oLastStateAction.dValAction[iAction]); 
-
-  if ( (iBest > -1) && (Math.random() > dEpsilon) )    // Using the e-greedy policy to select the best action or any of the rest
-    iNewAction = iBest;
-  else do {
-    iNewAction = (int) (Math.random() * (double) iNumActions);
-  } while (iNewAction == iBest);
- 
-  oLastStateAction = oPresentStateAction;    // Updating values for the next time
-  dLearnRate *= dDecFactorLR;      // Reducing the learning rate
-  if (dLearnRate < dMINLearnRate) dLearnRate = dMINLearnRate;
-}
 
 
 }  // from class LearningTools
