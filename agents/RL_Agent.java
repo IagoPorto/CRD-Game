@@ -81,6 +81,7 @@ public class RL_Agent extends Agent {
             //System.out.println(getAID().getName().split("@")[0] + ": " + state.name());
             msg = blockingReceive();//Recibe un mensaje ACL de la cola de mensajes del agente. Este método bloquea
                                     // y suspende todo el agente hasta que un mensaje esté disponible en la cola.
+            
             if (msg != null) {
                 //System.out.println(getAID().getName().split("@")[0] + ": " + " received " + msg.getContent() + " from " + msg.getSender().getName()); //DELETEME
                 //-------- Agent logic
@@ -108,7 +109,6 @@ public class RL_Agent extends Agent {
                         //If INFORM Id#_#_,_,_,_ PROCESS SETUP --> stay at s1
                         //Else ERROR
                         //Todo I probably should check if the new game message comes from the main agent who sent the parameters
-                        System.out.println("Soy el RL_AGENT voy a esperar por una nueva partida\n");
                         if (msg.getPerformative() == ACLMessage.INFORM) { //msg.getPerformative, return the integer representing the performative of this object
                             if (msg.getContent().startsWith("Id#")) { //Game settings updated
                                 try {
@@ -142,7 +142,7 @@ public class RL_Agent extends Agent {
                             }
                             R--;//Restamos 1 al número de rondas
                             msgS.setContent("Action#" + iNewAction);//selección de jugada que va a realizar
-                            System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
+                            //System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
                             send(msgS);
                             E -= iNewAction;//restamos a nuestro endowment el valor aleatorio de la acción escogida
                             state = State.s3AwaitingResult;
@@ -171,7 +171,7 @@ public class RL_Agent extends Agent {
                                 System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Bad message");
                             }
                             if(gameResults && R > 0) state = State.s2Round;//Si los resultados están bien y aun no ha acabado el juego, esperamos a que nos pida la acción
-                            if(gameResults && R == 0) state = State.s1AwaitingGame;//Si los resultados están bien y ha acabado el juego, esperamos el nuevo juego
+                            if(gameResults && R == 0) state = State.s2Round;//Si los resultados están bien y ha acabado el juego, esperamos el nuevo juego
                         } else {
                             System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Unexpected message");
                         }
@@ -225,7 +225,7 @@ public class RL_Agent extends Agent {
 
             for(int i = 0; i <= idSplit.length - 1; i++){
                 msgIds[i] = Integer.parseInt(idSplit[i]);
-                System.out.println(idSplit[i]);
+                //System.out.println(idSplit[i]);
                 players.add(new PlayerInformation(msgIds[i]));
                 
             }
@@ -233,7 +233,7 @@ public class RL_Agent extends Agent {
             for(int i = 0; i <= idSplit.length - 1; i++){
                 if(msgIds[i] == myID){
                     myPossitionInArray = i;
-                    System.out.println("Mi posición en el array es: " + myPossitionInArray);
+                    //System.out.println("Mi posición en el array es: " + myPossitionInArray);
                     break;
                 }
             }
@@ -255,9 +255,7 @@ public class RL_Agent extends Agent {
                 msgContribution[i] = Integer.parseInt(contributionsSplit[i]);
                 players.get(i).action = msgContribution[i];
             }
-            dPayoffAction[iNewAction] += 1.0 * msgContribution[myPossitionInArray];
-            System.out.println("Mi revenue es: " + dPayoffAction[iNewAction]);
-
+            
             return true;
         }
 
@@ -276,12 +274,11 @@ public class RL_Agent extends Agent {
             int[] msgResult = new int[resultsSplit.length];
             for(int i = 0; i <= resultsSplit.length - 1; i++){
                 msgResult[i] = Integer.parseInt(resultsSplit[i]);
-                if(msgIds[i] == myID){
-                    dPayoffAction[iNewAction] = (double) msgResult[i];
+                //System.out.println("la i es: " + i +" Mi posicion es: " + myPossitionInArray);
+                if(i == myPossitionInArray){
+                    dPayoffAction[iNewAction] += (double) msgResult[i];
                 }
-                if(players.get(i).contribution != msgResult[1]){
-                    return false;//Si la contribución no coincide con la que nosotros hemos contado, return false
-                }
+            
             }
 
             return true;
@@ -293,7 +290,12 @@ public class RL_Agent extends Agent {
         
                             // Checking that I have played all actions before
             if (!bAllActions) {
-                System.out.println("NO he comprobado todas las acciones");
+                //System.out.println("NO he comprobado todas las acciones");
+                System.out.println("Prob action " + 1 + " es: " + dProbAction[1]);
+                System.out.println("Prob action " + 2 + " es: " + dProbAction[2]);
+                System.out.println("Prob action " + 3 + " es: " + dProbAction[3]);
+                System.out.println("Prob action " + 4 + " es: " + dProbAction[4]);
+                System.out.println("Prob action " + 0 + " es: " + dProbAction[0]);
               bAllActions = true;
               for (int i = 0; i < iNumActions; i++)
                 if (iNumTimesAction[i] == 0) {
@@ -301,15 +303,18 @@ public class RL_Agent extends Agent {
                   break;
                 }
             }else {                // If all actions have been tested, the probabilities are adjusted
-                System.out.println("SI  he comprobado todas las acciones");
+                //System.out.println("SI  he comprobado todas las acciones");
               dAuxTot = 0;
               for (int i = 0; i < iNumActions; i++) {       // Calculating average incomes
                 dAvgPayoffAction[i] = dPayoffAction[i] / (double) iNumTimesAction[i];  // Avg. value
                 dAuxTot += dAvgPayoffAction[i];       // Adding the individual results
               }
         
-              for (int i = 0; i < iNumActions; i++)
+              for (int i = 0; i < iNumActions; i++){
                 dProbAction[i] = dAvgPayoffAction[i] / dAuxTot;    // Calculating probs.
+                
+                System.out.println("Prob action " + i + " es: " + dProbAction[i]);
+              }
         
             } // if (bAllActions)
         
@@ -318,7 +323,7 @@ public class RL_Agent extends Agent {
             dAux = Math.random();
             for (int i = 0; i < iNumActions; i++) {
               dAuxTot += dProbAction[i];
-              System.out.println("La dAuxTot: " + String.valueOf(dAuxTot) +  " La dProbaction" + i +": " + String.valueOf(dProbAction[i]) + " La dAux es: " + dAux + "\n");
+              //System.out.println("La dAuxTot: " + String.valueOf(dAuxTot) +  " La dProbaction" + i +": " + String.valueOf(dProbAction[i]) + " La dAux es: " + dAux + "\n");
               if (dAux <= dAuxTot) {
                 iNewAction = i;
                 iNumTimesAction[i]++;
