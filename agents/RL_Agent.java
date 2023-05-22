@@ -277,6 +277,7 @@ public class RL_Agent extends Agent {
                 //System.out.println("la i es: " + i +" Mi posicion es: " + myPossitionInArray);
                 if(i == myPossitionInArray){
                     dPayoffAction[iNewAction] += (double) msgResult[i];
+                    System.out.println("El payoff: " + dPayoffAction[iNewAction] + " La acción: " + iNewAction + " el revenue: " + msgResult[i]);
                 }
             
             }
