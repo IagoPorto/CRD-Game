@@ -32,10 +32,12 @@ public class NN_Agent extends Agent {
     private int move;
     private double dLearnRate = 1.0;          // Learning rate for this SOM
     private double dDecLearnRate = 0.999;        // Used to reduce the learning rate
+    private double win = 0.4, lose = 0.2;
     private int iRadio;
     private double[][][] somNetwork;
     private int[] movesPerGame = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     private int[] movesPerGame2 = new int[10];
+    private boolean ganador;
 
     protected void setup() {//Inicialización del agente
         state = State.s0NoConfig; //Se le asigna el estado 0 no configurado
@@ -54,7 +56,11 @@ public class NN_Agent extends Agent {
             fe.printStackTrace();
         }
         addBehaviour(new Play());//Se le añade el comportamiento al jugador
-        System.out.println("RL_Agent " + getAID().getName() + " is ready.");
+        Random r = new Random();
+        for(int i = 0; i < 10; i++){
+            movesPerGame[i] = r.nextInt(5);
+        }
+        System.out.println("NN_Agent " + getAID().getName() + " is ready.");
 
     }
 
@@ -142,6 +148,7 @@ public class NN_Agent extends Agent {
                             Raux++;
                             //System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
                             msgS.setContent("Action#" + move);//selección de jugada que va a realizar
+                            //System.out.println("Mi eleccion es: " + move);
                             send(msgS);
                             E -= move;//restamos a nuestro endowment el valor aleatorio de la acción escogida
                             state = State.s3AwaitingResult;
@@ -149,7 +156,11 @@ public class NN_Agent extends Agent {
                             boolean gameOver = false;
                             try {
                                 gameOver = validateGameOver(msg.getContent());
-                                trainSOM(movesPerGame);
+                                    trainSOM(movesPerGame);
+                                System.out.println("Mi eleccion fue: ");
+                                for(int i = 0; i < Ri; i++){
+                                    System.out.println("" + movesPerGame2[i]);
+                                }
                             } catch (NumberFormatException e) {
                                 System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Bad message");
                             }
@@ -167,6 +178,7 @@ public class NN_Agent extends Agent {
                             try {
                                 gameResults = validateResults(msg.getContent());
                                 sumarContribuciones();
+                                
                             } catch (NumberFormatException e) {
                                 System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Bad message");
                             }
@@ -273,6 +285,15 @@ public class NN_Agent extends Agent {
             String[] resultsSplit = contentSplit[1].split(",");
             if(resultsSplit.length != N) return false;
             int[] msgResult = new int[resultsSplit.length];
+            ganador = true;
+            for(int i = 0; i < msgResult.length; i++){
+                if(i != myPossitionInArray){
+                    if(msgResult[myPossitionInArray] < msgResult[i]){
+                        ganador = false;
+                        break;
+                    }
+                }
+            }
 
             return true;
         }
@@ -340,10 +361,17 @@ public class NN_Agent extends Agent {
                     else if (yAux >= 10)
                     yAux -= 10;
                 
-                    for (int k=0; k<10; k++)
-                    somNetwork [xAux][yAux][k] += dLearnRate * (movesPerGame[k] - somNetwork[xAux][yAux][k]) / (1 + v*v + h*h);
-                }
+                    for (int k=0; k<10; k++){
+                        if(ganador){
+                            somNetwork [xAux][yAux][k] += dLearnRate * (movesPerGame[k] - somNetwork[xAux][yAux][k]) / (1 + v*v + h*h);
+                        }else{
+                            somNetwork [xAux][yAux][k] += 0.1 * (movesPerGame[k] - somNetwork[xAux][yAux][k]) / (1 + v*v + h*h);
+                        }
+                    }
+                
+                 }
                 y++;
+                dLearnRate *= dDecLearnRate;
             }
             for(int y = 0; y < Ri; y++){
                 movesPerGame[y] = movesPerGame2[y];
