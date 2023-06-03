@@ -1,5 +1,7 @@
 import java.util.Locale;
 
+import jade.tools.introspector.gui.MainWindow;
+
 
 /**
   * This class provides a SOM neural network
