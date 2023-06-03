@@ -30,9 +30,12 @@ public class NN_Agent extends Agent {
     private int myPossitionInArray;
     
     private int move;
-
-    private double[][] somNetwork;
+    private double dLearnRate = 1.0;          // Learning rate for this SOM
+    private double dDecLearnRate = 0.999;        // Used to reduce the learning rate
+    private int iRadio;
+    private double[][][] somNetwork;
     private int[] movesPerGame = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    private int[] movesPerGame2 = new int[10];
 
     protected void setup() {//Inicialización del agente
         state = State.s0NoConfig; //Se le asigna el estado 0 no configurado
@@ -134,15 +137,19 @@ public class NN_Agent extends Agent {
                             msgS.addReceiver(mainAgent);
                             R--;//Restamos 1 al número de rondas
                             move = selectMove(Raux, movesPerGame);
+                           
+                            movesPerGame2[Raux] = move;
                             Raux++;
                             //System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
+                            msgS.setContent("Action#" + move);//selección de jugada que va a realizar
                             send(msgS);
-                            E -= iNewAction;//restamos a nuestro endowment el valor aleatorio de la acción escogida
+                            E -= move;//restamos a nuestro endowment el valor aleatorio de la acción escogida
                             state = State.s3AwaitingResult;
                         } else if (msg.getPerformative() == ACLMessage.INFORM && msg.getContent().startsWith("GameOver#")) {
                             boolean gameOver = false;
                             try {
                                 gameOver = validateGameOver(msg.getContent());
+                                trainSOM(movesPerGame);
                             } catch (NumberFormatException e) {
                                 System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Bad message");
                             }
@@ -266,25 +273,80 @@ public class NN_Agent extends Agent {
             String[] resultsSplit = contentSplit[1].split(",");
             if(resultsSplit.length != N) return false;
             int[] msgResult = new int[resultsSplit.length];
-            for(int i = 0; i <= resultsSplit.length - 1; i++){
-                msgResult[i] = Integer.parseInt(resultsSplit[i]);
-                //System.out.println("la i es: " + i +" Mi posicion es: " + myPossitionInArray);
-                if(i == myPossitionInArray){
-                    dPayoffAction[iNewAction] += (double) msgResult[i];
-                    System.out.println("El payoff: " + dPayoffAction[iNewAction] + " La acción: " + iNewAction + " el revenue: " + msgResult[i]);
-                }
-            
-            }
 
             return true;
         }
 
         public void resetMatrix(){
-            somNetwork = new double[5][R];
+            somNetwork = new double[5][R][movesPerGame.length];
+            iRadio = R/10;
             for(int i = 0; i < 5; i++){
                 for(int j = 0; j < R; j++){
-                    somNetwork[i][j] = (double) Math.random();
+                    for(int k = 0; k < movesPerGame.length; k++){
+                        somNetwork[i][j][k] = (double) Math.random();
+                    }
                 }
+            }
+        }
+
+        public int selectMove(int round, int[] movesPerGameAux){
+            int x=0;
+            double dNorm, dNormMin = Double.MAX_VALUE;
+
+            for (int j = 0; j < 5; j++) {//rows
+                dNorm = 0;
+                for (int i = 0; i < Ri; i++) {
+                    dNorm += (movesPerGameAux[i] - somNetwork[j][round][i]) * (movesPerGameAux[i] - somNetwork[j][round][i]);
+                    
+                    if (dNorm < dNormMin) {
+                        dNormMin = dNorm;
+                        x=j;
+                    }
+                }
+            }
+            return x;
+        }
+
+        public void trainSOM(int[] movesPerGameAux){
+            for(int u = 0; u < Ri; u ++){
+                int x = 0, y = 0;
+                double dNorm, dNormMin = Double.MAX_VALUE;
+
+                for (int j = 0; j < 5; j++) {//rows
+                    dNorm = 0;
+                    for (int i = 0; i < Ri; i++) {
+                        dNorm += (movesPerGameAux[i] - somNetwork[j][y][i]) * (movesPerGameAux[i] - somNetwork[j][y][i]);
+                        
+                        if (dNorm < dNormMin) {
+                            dNormMin = dNorm;
+                            x=j;
+                        }
+                    }
+                }
+                int xAux=0;
+                int yAux=0;
+                for (int v = -iRadio; v <= iRadio; v++)       // Adjusting the neighborhood
+                for (int h = -iRadio; h <= iRadio; h++) {
+                    xAux = x+h;
+                    yAux = y+v;
+                    
+                    if (xAux < 0)                // Assuming a torus world
+                    xAux += 5;
+                    else if (xAux >= 5)
+                    xAux -= 5;
+                
+                    if (yAux < 0)
+                    yAux += 10;
+                    else if (yAux >= 10)
+                    yAux -= 10;
+                
+                    for (int k=0; k<10; k++)
+                    somNetwork [xAux][yAux][k] += dLearnRate * (movesPerGame[k] - somNetwork[xAux][yAux][k]) / (1 + v*v + h*h);
+                }
+                y++;
+            }
+            for(int y = 0; y < Ri; y++){
+                movesPerGame[y] = movesPerGame2[y];
             }
         }
     }
