@@ -23,11 +23,13 @@ public class NN_Agent extends Agent {
     private State state;
     private AID mainAgent;
     private ArrayList<PlayerInformation> players = new ArrayList<>();
-    private int N, R, E, Ei, Ri; //numPlayers, rounds, endowment, Probabily of disaster, number of Games. Endowment inicial
+    private int N, R, E, Ei, Ri, Raux; //numPlayers, rounds, endowment, Probabily of disaster, number of Games. Endowment inicial
     private int myID;
     private ACLMessage msg; //message
     private int[] msgIds;
     private int myPossitionInArray;
+    
+    private int move;
 
     private double[][] somNetwork;
     private int[] movesPerGame = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -47,9 +49,6 @@ public class NN_Agent extends Agent {
             DFService.register(this, dfd);
         } catch (FIPAException fe) {
             fe.printStackTrace();
-        }
-        for(int i = 0; i < iNumActions; i++){
-            dProbAction[i] = (1.0/iNumActions);
         }
         addBehaviour(new Play());//Se le añade el comportamiento al jugador
         System.out.println("RL_Agent " + getAID().getName() + " is ready.");
@@ -133,11 +132,9 @@ public class NN_Agent extends Agent {
                         if (msg.getPerformative() == ACLMessage.REQUEST && msg.getContent().startsWith("Action")) {
                             ACLMessage msgS = new ACLMessage(ACLMessage.INFORM);
                             msgS.addReceiver(mainAgent);
-                            if(R == Ri){
-                                vGetNewActionStats();
-                            }
                             R--;//Restamos 1 al número de rondas
-                            msgS.setContent("Action#" + iNewAction);//selección de jugada que va a realizar
+                            move = selectMove(Raux, movesPerGame);
+                            Raux++;
                             //System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
                             send(msgS);
                             E -= iNewAction;//restamos a nuestro endowment el valor aleatorio de la acción escogida
@@ -236,6 +233,7 @@ public class NN_Agent extends Agent {
             
             E = Ei;//Actualizamos el endowment para el siguiente juego
             R = Ri;//Actualizamos las rondas para el siguiente juego
+            Raux = 0;
             return true;
         }
 
