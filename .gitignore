@@ -1,3 +1,5 @@
 jade.jar
 readme.txt
+*.class
+agents/*.class
 .vscode
