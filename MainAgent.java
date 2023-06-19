@@ -332,7 +332,6 @@ public class MainAgent extends Agent {
             String s;
             int n;
             ACLMessage move;
-
             s = "NewGame#";
             n = 0;
             for (PlayerInformation player : playersToPlay) {//comunicamos el nuevo juego a los jugadores
@@ -399,6 +398,7 @@ public class MainAgent extends Agent {
                 n = 0;
                 s = "GameOver#";
                 for (PlayerInformation player : playersToPlay) {
+                    
                     msg.addReceiver(player.aid);
                     player.total += player.er;
                     if (n != (playersToPlay.size() - 1)) s = s + "0,";

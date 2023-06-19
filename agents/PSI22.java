@@ -14,38 +14,17 @@ import jade.domain.FIPAException;//This class represents a generic FIPAException
 import jade.lang.acl.ACLMessage;//The class ACLMessage implements an ACL message compliant to the FIPA 2000 
 
 import java.util.ArrayList;
-import java.util.Random;
 //"FIPA ACL Message Structure Specification" (fipa000061) specifications.
 //import java.util.Random;//An instance of this class is used to generate a stream of pseudorandom numbers.
 
-public class NN_Agent extends Agent {
+public class PSI22 extends Agent {
 
     private State state;
     private AID mainAgent;
     private ArrayList<PlayerInformation> players = new ArrayList<>();
-    private int N, R, E, Ei, Ri, Raux; //numPlayers, rounds, endowment, Probabily of disaster, number of Games. Endowment inicial
-    private int myID;
-    private ACLMessage msg; //message
-    private int[] msgIds;
-    private int myPossitionInArray;
-    
-    private int move;
-    private int iGridSide;
-    //private int jGridSide;            // Side of the SOM 2D grid
-    //private int iCellSize;            // Size in pixels of a SOM neuron in the grid
-    //private int[][] iNumTimesBMU;         // Number of times a cell has been a BMU
-    //private int[] iBMU_Pos = new int[2];     // BMU position in the grid
-
-    private int inputSize;               // Size of the input vector
-    //private int iRadio;                 // BMU radio to modify neurons
-    //private double dLearnRate = 1.0;          // Learning rate for this SOM
-    //private double dDecLearnRate = 0.999;       // Used to reduce the learning rate
-    //private double[] dBMU_Vector = null;        // BMU state
-    private double[][] dGrid;             // SOM square grid + vector state per neuron
-    private double[][] electionMatrix = new double[5][10];
-    private int[] movesPerGame = new int[10];
-    private double win = 0.8, fail = 0.3;
-    private boolean ganador;
+    private int N, R, E, Ei, Ri; //numPlayers, rounds, endowment, Probabily of disaster, number of Games. Endowment inicial
+    private int randNum;//S se usa para la el número random?
+    private ACLMessage msg; //menssage
 
     protected void setup() {//Inicialización del agente
         state = State.s0NoConfig; //Se le asigna el estado 0 no configurado
@@ -53,7 +32,6 @@ public class NN_Agent extends Agent {
         //Register in the yellow pages as a player
         DFAgentDescription dfd = new DFAgentDescription();
         dfd.setName(getAID());//Se le asigna un id 
-        myID = Integer.parseInt(getAID().getName().split("@")[0].split("r")[1]); 
         ServiceDescription sd = new ServiceDescription();
         sd.setType("Player");//tipo jugador
         sd.setName("Game");//nombre Juego
@@ -64,17 +42,7 @@ public class NN_Agent extends Agent {
             fe.printStackTrace();
         }
         addBehaviour(new Play());//Se le añade el comportamiento al jugador
-        Random r = new Random();
-        for(int i = 0; i < 10; i++){
-            movesPerGame[i] = r.nextInt(5);      
-        }
-        System.out.println("mmmmmmmmmmmmmmmmmmmmmm");
-        for (int i = 0; i < 5; i++){
-            for(int j = 0; j < 10; j++){
-                electionMatrix[i][j] = 0.2*(i + 1);
-            }
-        }
-        System.out.println("NN_Agent " + getAID().getName() + " is ready.");
+        System.out.println("RandomAgent " + getAID().getName() + " is ready.");
 
     }
 
@@ -85,7 +53,7 @@ public class NN_Agent extends Agent {
         } catch (FIPAException e) {
             e.printStackTrace();
         }
-        System.out.println("RL_Agent " + getAID().getName() + " terminating.");
+        System.out.println("RandomPlayer " + getAID().getName() + " terminating.");
     }
 
     private enum State {//Máquina de estados que se usará para el comportamiento
@@ -98,7 +66,6 @@ public class NN_Agent extends Agent {
             //System.out.println(getAID().getName().split("@")[0] + ": " + state.name());
             msg = blockingReceive();//Recibe un mensaje ACL de la cola de mensajes del agente. Este método bloquea
                                     // y suspende todo el agente hasta que un mensaje esté disponible en la cola.
-            
             if (msg != null) {
                 //System.out.println(getAID().getName().split("@")[0] + ": " + " received " + msg.getContent() + " from " + msg.getSender().getName()); //DELETEME
                 //-------- Agent logic
@@ -111,7 +78,6 @@ public class NN_Agent extends Agent {
                             boolean parametersUpdated = false;
                             try {
                                 parametersUpdated = validateSetupMessage(msg);
-                                resetMatrix();
                             } catch (NumberFormatException e) {
                                 System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Bad message");
                             }
@@ -127,6 +93,7 @@ public class NN_Agent extends Agent {
                         //If INFORM Id#_#_,_,_,_ PROCESS SETUP --> stay at s1
                         //Else ERROR
                         //Todo I probably should check if the new game message comes from the main agent who sent the parameters
+
                         if (msg.getPerformative() == ACLMessage.INFORM) { //msg.getPerformative, return the integer representing the performative of this object
                             if (msg.getContent().startsWith("Id#")) { //Game settings updated
                                 try {
@@ -155,22 +122,21 @@ public class NN_Agent extends Agent {
                         if (msg.getPerformative() == ACLMessage.REQUEST && msg.getContent().startsWith("Action")) {
                             ACLMessage msgS = new ACLMessage(ACLMessage.INFORM);
                             msgS.addReceiver(mainAgent);
+                            if(E < 4){//Si el endowment que nos queda es menor que 4, enviamos el endowment que nos queda
+                                randNum = E;
+                            }else{//Si no enviamos un número aleatorio entre 0 y 4
+                                randNum = (int)(Math.random()*2)+ 1;
+                            }
                             R--;//Restamos 1 al número de rondas
-                            move = selectMove(movesPerGame);
-                            movesPerGame[Raux] = move;
-                            Raux++;
+                            msgS.setContent("Action#" + randNum);//selección de jugada que va a realizar
                             //System.out.println(getAID().getName().split("@")[0] + ": " + " sent " + msgS.getContent());
-                            msgS.setContent("Action#" + move);//selección de jugada que va a realizar
-                            //System.out.println("Mi eleccion es: " + move);
                             send(msgS);
-                            E -= move;//restamos a nuestro endowment el valor aleatorio de la acción escogida
+                            E -= randNum;//restamos a nuestro endowment el valor aleatorio de la acción escogida
                             state = State.s3AwaitingResult;
                         } else if (msg.getPerformative() == ACLMessage.INFORM && msg.getContent().startsWith("GameOver#")) {
                             boolean gameOver = false;
                             try {
-                                System.out.println(""+movesPerGame[0]+movesPerGame[1]+movesPerGame[2]+movesPerGame[3]+movesPerGame[4]+movesPerGame[5]+movesPerGame[6]+movesPerGame[7]+movesPerGame[8]+movesPerGame[9]);
                                 gameOver = validateGameOver(msg.getContent());
-                                trainSOM();
                             } catch (NumberFormatException e) {
                                 System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Bad message");
                             }
@@ -188,12 +154,11 @@ public class NN_Agent extends Agent {
                             try {
                                 gameResults = validateResults(msg.getContent());
                                 sumarContribuciones();
-                                
                             } catch (NumberFormatException e) {
                                 System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Bad message");
                             }
                             if(gameResults && R > 0) state = State.s2Round;//Si los resultados están bien y aun no ha acabado el juego, esperamos a que nos pida la acción
-                            if(gameResults && R == 0) state = State.s2Round;//Si los resultados están bien y ha acabado el juego, esperamos el nuevo juego
+                            if(gameResults && R == 0) state = State.s1AwaitingGame;//Si los resultados están bien y ha acabado el juego, esperamos el nuevo juego
                         } else {
                             System.out.println(getAID().getName().split("@")[0] + ": " + state.name() + " - Unexpected message");
                         }
@@ -243,26 +208,15 @@ public class NN_Agent extends Agent {
             if (!contentSplit[0].equals("NewGame")) return false;
             String[] idSplit = contentSplit[1].split(",");
             if (idSplit.length < 2 ) return false;
-            msgIds = new int[idSplit.length];
+            int[] msgIds = new int[idSplit.length];
 
             for(int i = 0; i <= idSplit.length - 1; i++){
                 msgIds[i] = Integer.parseInt(idSplit[i]);
-                //System.out.println(idSplit[i]);
                 players.add(new PlayerInformation(msgIds[i]));
                 
             }
-
-            for(int i = 0; i <= idSplit.length - 1; i++){
-                if(msgIds[i] == myID){
-                    myPossitionInArray = i;
-                    //System.out.println("Mi posición en el array es: " + myPossitionInArray);
-                    break;
-                }
-            }
-            
             E = Ei;//Actualizamos el endowment para el siguiente juego
             R = Ri;//Actualizamos las rondas para el siguiente juego
-            Raux = 0;
             return true;
         }
 
@@ -279,7 +233,6 @@ public class NN_Agent extends Agent {
                 players.get(i).action = msgContribution[i];
             }
 
-            
             return true;
         }
 
@@ -296,106 +249,18 @@ public class NN_Agent extends Agent {
             String[] resultsSplit = contentSplit[1].split(",");
             if(resultsSplit.length != N) return false;
             int[] msgResult = new int[resultsSplit.length];
-            ganador = true;
-            for(int i = 0; i < msgResult.length; i++){
-                if(i != myPossitionInArray){
-                    if(msgResult[myPossitionInArray] < msgResult[i]){
-                        ganador = false;
-                        break;
-                    }
+            for(int i = 0; i <= resultsSplit.length - 1; i++){
+                msgResult[i] = Integer.parseInt(resultsSplit[i]);
+                if(players.get(i).contribution != msgResult[1]){
+                    return false;//Si la contribución no coincide con la que nosotros hemos contado, return false
                 }
             }
 
             return true;
         }
-
-        public void resetMatrix(){
-            iGridSide = 5;
-            dGrid = new double[5][R];
-            for(int i = 0; i < 5; i++){
-                for(int j = 0; j < R; j++){
-
-                    dGrid[i][j] = (double) Math.random();
-                    
-                }
-            }
-        }
-
-        public int selectMove(int[] movesPerGameAux){
-            double dNorm, dNormMin = Double.MAX_VALUE;
-            inputSize = movesPerGameAux.length;
-            int aux = 0;
-            int jugada = 0;
-            int election = 0;
-            inputSize = movesPerGameAux.length;
-            for (int i=0; i < iGridSide; i++) {           // Finding the BMU
-        
-                dNorm = 0;
-                for (int k=0; k<inputSize; k++){           // Calculating the norm
-                    dNorm += (movesPerGameAux[k] - dGrid[i][Raux]) * ((movesPerGameAux[k] - dGrid[i][Raux]));
-            
-                    if (dNorm < dNormMin) {
-                        dNormMin = dNorm; 
-                        jugada = i;
-                    }
-                }                       // Leaving the loop with the x,y positions for the BMU
-
-            }
-            for (int i = 0; i < 5; i++) {
-                if(i != 4){
-                    if (electionMatrix[i][Raux] < jugada && jugada < electionMatrix[i+1][Raux]) {
-
-                        jugada = election;
-                    }
-                }else{
-                     if (electionMatrix[i][Raux] < jugada && jugada < electionMatrix[0][Raux]) {
-
-                        jugada = election;
-                    }
-                }
-                election++;
-            }
-            return jugada;
-        }
-
-        public void trainSOM(){
-            
-            String[] endowments = msg.getContent().split("#")[1].split(",");
-            int myEndowment = Integer.parseInt(endowments[myPossitionInArray]);
-            boolean lose = false, boom = false;
-            int allHaveZero = 0;
-
-            for(int i = 0; i < endowments.length; i++) {
-
-                if(myEndowment < Integer.parseInt(endowments[i]) ){ 
-                    lose = true;
-                }
-                if(Integer.parseInt(endowments[i]) == 0){
-                    allHaveZero++;
-                }
-            }
-            if(allHaveZero == endowments.length) boom = true;
-                    
-            for(int i = 0; i < movesPerGame.length; i++) ponderation(i, movesPerGame[i], lose, boom);
-                
-            for (int i = 0; i < 5; i++) {
-                for (int j = 0; j < 10; j++) {
-                    electionMatrix[i][j] = electionMatrix[i][j]/electionMatrix[4][j];
-                }
-            }
-        }
     }
 
-    public void ponderation(int n, int pos, boolean l, boolean b){
-        if(!l && !b){
-            electionMatrix[pos][n] = win*(1.0 - electionMatrix[pos][n]);
 
-        }
-        if(l && !b){
-            electionMatrix[pos][n] = fail*(1.0 - electionMatrix[pos][n]);
-
-        }
-    }
 
     public class PlayerInformation {
 

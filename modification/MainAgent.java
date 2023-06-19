@@ -401,8 +401,13 @@ public class MainAgent extends Agent {
                 for (PlayerInformation player : playersToPlay) {
                     msg.addReceiver(player.aid);
                     player.total += player.er;
-                    if (n != (playersToPlay.size() - 1)) s = s + "0,";
-                    else s = s + "0";
+                    if (n != (playersToPlay.size() - 1)){
+                        if(player.er < 20){
+                         s = s + "0,";
+                        }else{
+                            s = s + player.er + ",";
+                        }
+                    }else s = s + "0";
                     n++;
                 }
                 msg.setContent(s);
